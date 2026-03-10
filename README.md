@@ -4,7 +4,7 @@ This is a simple python tool to evaluate the strength of passwords based on comm
 
 ## Features
 
-- Checks passwords length (minimum 8 characters)
+- Checks passwords length (minimum 6 characters)
 - Looks for uppercase and lowercase letters
 - Ensures digits and special characters are included
 - Provides a strength score and suggestions to make stronger
