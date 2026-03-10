@@ -1,61 +1,38 @@
 #!/usr/bin/env python3
-"""
-Password Strength Analyzer
-A simple tool to evaluate the strength of a password based on common security criteria.
-"""
 
 import re
 import sys
 
 def check_password_strength(password):
-    """
-    Evaluates the strength of a password.
 
-    Criteria:
-    - Length: At least 8 characters
-    - Uppercase letter
-    - Lowercase letter
-    - Digit
-    - Special character
-
-    Returns:
-    - Strength score (0-5)
-    - Feedback message
-    """
     score = 0
     feedback = []
 
-    # Check length
-    if len(password) >= 8:
+    if len(password) >= 6:
         score += 1
     else:
-        feedback.append("Password should be at least 8 characters long.")
+        feedback.append("Password should be at least 6 characters long.")
 
-    # Check for uppercase
     if re.search(r'[A-Z]', password):
         score += 1
     else:
         feedback.append("Include at least one uppercase letter.")
 
-    # Check for lowercase
     if re.search(r'[a-z]', password):
         score += 1
     else:
         feedback.append("Include at least one lowercase letter.")
 
-    # Check for digit
     if re.search(r'\d', password):
         score += 1
     else:
         feedback.append("Include at least one digit.")
 
-    # Check for special character
     if re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
         score += 1
     else:
         feedback.append("Include at least one special character (e.g., !@#$%^&*).")
 
-    # Determine strength level
     if score == 5:
         strength = "Very Strong"
     elif score == 4:

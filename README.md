@@ -1,21 +1,21 @@
 # Password Strength Analyzer
 
-A simple Python tool to evaluate the strength of passwords based on common security criteria.
+This is a simple python tool to evaluate the strength of passwords based on common security criteria.
 
 ## Features
 
-- Checks password length (minimum 8 characters)
-- Verifies presence of uppercase and lowercase letters
+- Checks passwords length (minimum 8 characters)
+- Looks for uppercase and lowercase letters
 - Ensures digits and special characters are included
-- Provides a strength score and improvement suggestions
+- Provides a strength score and suggestions to make stronger
 
 ## Disclaimer
 
-This tool is for educational purposes only. It does not guarantee password security against all threats. Always use strong, unique passwords and consider using a password manager.
+This tool is for educational purposes only. It does not guarantee password security against any threat. Always use strong and unique passwords and consider using a password manager.
 
 ## Installation
 
-1. Ensure Python 3 is installed on your system.
+1. Python 3 is installed on your system.
 2. Download or clone this repository.
 
 ## Usage
@@ -42,7 +42,7 @@ Your password is strong!
 
 ## Contributing
 
-Feel free to submit issues or pull requests to improve this tool.
+Feel free to submit issues or pull requests to improve this tool. Always happy to make room for improvements :)
 
 ## License
 
