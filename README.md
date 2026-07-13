@@ -37,6 +37,19 @@ Details:
 - Estimated entropy: 9.6 bits.
 ```
 
+## How the Rating Works
+
+The score counts how many of the five composition checks pass. Scores 0-1
+map to Very Weak, then each extra point moves the rating up one level.
+
+Shannon entropy acts as a sanity check on top of the score: a password that
+passes the composition checks but has repetitive content can be dragged down
+by one level, though never boosted. The entropy boundaries (28, 36, 45 and
+60 bits) follow the commonly used crack-resistance scale where anything
+under 28 bits is trivially guessable, 28-35 bits resists only casual
+guessing, 36-59 bits is reasonable for online accounts, and 60+ bits holds
+up against offline attacks.
+
 ## Disclaimer
 
 For educational purposes only. Always use strong, unique passwords and a password manager.
