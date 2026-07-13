@@ -27,21 +27,24 @@ def load_common_passwords(path: str):
         return set()
 
 
+SCORE_LEVELS = {0: 0, 1: 0, 2: 1, 3: 2, 4: 3, 5: 4}
+
+ENTROPY_LEVEL_THRESHOLDS = (
+    (60.0, 4),
+    (45.0, 3),
+    (36.0, 2),
+    (28.0, 1),
+)
+
+
 def _score_to_level(score: int) -> int:
-    if score >= 5:
-        return 4
-    return max(0, score - 1)
+    return SCORE_LEVELS[min(score, max(SCORE_LEVELS))]
 
 
 def _entropy_to_level(bits: float) -> int:
-    if bits >= 60:
-        return 4
-    if bits >= 45:
-        return 3
-    if bits >= 36:
-        return 2
-    if bits >= 28:
-        return 1
+    for minimum_bits, level in ENTROPY_LEVEL_THRESHOLDS:
+        if bits >= minimum_bits:
+            return level
     return 0
 
 
@@ -55,7 +58,7 @@ def _level_to_label(level: int) -> str:
     }[level]
 
 
-def check_password_strength(password: str, common_passwords: set = None):
+def check_password_strength(password: str, common_passwords=None):
     score = 0
     feedback = []
 
@@ -97,8 +100,8 @@ def check_password_strength(password: str, common_passwords: set = None):
     else:
         score_level = _score_to_level(score)
         entropy_level = _entropy_to_level(entropy_bits)
-        # Entropy can drag score down by at most 1 level, but cannot boost above score_level.
-        final_level = min(score_level, max(entropy_level, score_level - 1))
+        lowest_level_entropy_may_impose = score_level - 1
+        final_level = min(score_level, max(entropy_level, lowest_level_entropy_may_impose))
 
     strength = _level_to_label(final_level)
 
