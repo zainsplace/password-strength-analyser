@@ -1,4 +1,5 @@
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -6,71 +7,120 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from password_analyzer import (
-    _entropy_to_level,
-    _score_to_level,
     check_password_strength,
-    shannon_entropy,
+    estimate_guesses,
+    load_common_passwords,
 )
 
+COMMON = load_common_passwords(Path(__file__).resolve().parents[1] / "common_passwords.txt")
 
-def test_entropy_of_empty_password_is_zero():
-    assert shannon_entropy("") == 0.0
-
-
-def test_entropy_of_repeated_character_is_zero():
-    assert shannon_entropy("aaaaaaaa") == 0.0
+LEVELS = ["Very Weak", "Weak", "Medium", "Strong", "Very Strong"]
 
 
-def test_entropy_grows_with_character_variety():
-    assert shannon_entropy("abcdefgh") > shannon_entropy("aaaabbbb")
+def rating(password):
+    return LEVELS.index(check_password_strength(password, COMMON).strength)
 
 
-def test_score_levels_map_every_score():
-    assert [_score_to_level(score) for score in range(6)] == [0, 0, 1, 2, 3, 4]
-
-
-def test_score_above_maximum_is_clamped():
-    assert _score_to_level(9) == 4
+def kinds(password):
+    return {match.kind for match in estimate_guesses(password, COMMON).matches}
 
 
 @pytest.mark.parametrize(
-    ("bits", "level"),
-    [(0, 0), (27.9, 0), (28, 1), (36, 2), (45, 3), (59.9, 3), (60, 4), (120, 4)],
+    "password",
+    ["P@ssw0rd", "Password1!", "Qwertyuiop123!", "password", "12345678",
+     "abcdefghijklmnopqrstuvwxyz", "aaaaaaaaaaaaaaaa", "Summer2024!"],
 )
-def test_entropy_thresholds(bits, level):
-    assert _entropy_to_level(bits) == level
+def test_canonical_weak_passwords_rate_weak_or_worse(password):
+    assert rating(password) <= LEVELS.index("Weak")
 
 
-def test_strong_password_rates_very_strong():
-    score, strength, _ = check_password_strength("Zx!9mK#pQ2@nR5$v")
-    assert score == 5
-    assert strength == "Very Strong"
+def test_long_passphrase_rates_very_strong():
+    assert rating("correct horse battery staple") == LEVELS.index("Very Strong")
 
 
-def test_missing_character_classes_produce_feedback():
-    score, strength, feedback = check_password_strength("hello")
-    assert score == 1
-    assert strength == "Very Weak"
-    joined = " ".join(feedback)
-    assert "8 characters" in joined
-    assert "uppercase" in joined
-    assert "digit" in joined
-    assert "special character" in joined
+def test_long_random_password_rates_very_strong():
+    assert rating("Zx!9mK#pQ2@nR5$v") == LEVELS.index("Very Strong")
 
 
-def test_low_entropy_reduces_rating_by_one_level():
-    score, strength, _ = check_password_strength("Aa1!Aa1!")
-    assert score == 5
-    assert strength == "Strong"
+def test_stacked_keyboard_walks_are_not_rated_strong():
+    assert rating("1qaz2wsx3edc4rfv!Q") <= LEVELS.index("Medium")
 
 
-def test_common_password_forces_very_weak():
-    common = {"Zx!9mK#pQ2@nR5$v"}
-    score, strength, feedback = check_password_strength("Zx!9mK#pQ2@nR5$v", common)
-    assert strength == "Very Weak"
-    assert any("common-passwords" in item for item in feedback)
+def test_empty_password_is_one_guess():
+    assert estimate_guesses("", COMMON).guesses == 1
+    assert check_password_strength("", COMMON).strength == "Very Weak"
 
 
-def test_entropy_estimate_always_reported():
-    _, _, feedback = check_password_strength("anything")
-    assert any("entropy" in item.lower() for item in feedback)
+def test_common_passwords_keep_their_rank():
+    assert COMMON["123456"] == 1
+    assert COMMON["password"] == 2
+
+
+def test_leetspeak_is_folded_back_to_the_dictionary_word():
+    matches = estimate_guesses("P@ssw0rd", COMMON).matches
+    assert [(m.kind, m.word) for m in matches] == [("dictionary", "password")]
+
+
+def test_capitalisation_costs_the_attacker_little():
+    lower = estimate_guesses("password", COMMON).guesses
+    capital = estimate_guesses("Password", COMMON).guesses
+    assert lower < capital <= lower * 2
+
+
+def test_keyboard_walk_is_detected():
+    assert kinds("zxcvfr") == {"keyboard"}
+
+
+def test_shifted_keyboard_walk_is_detected():
+    assert kinds("^&*()_+") == {"keyboard"}
+
+
+def test_ascending_and_descending_sequences_are_detected():
+    assert kinds("lmnopq") == {"sequence"}
+    assert kinds("hgfedc") == {"sequence"}
+
+
+def test_repeated_unit_is_detected():
+    assert kinds("xkqxkqxkq") == {"repeat"}
+
+
+@pytest.mark.parametrize("password", ["1" * 64, "a" * 64, "ab" * 32])
+def test_long_repetitive_password_is_analysed_quickly(password):
+    started = time.perf_counter()
+    assert check_password_strength(password, COMMON).strength == "Very Weak"
+    assert time.perf_counter() - started < 2
+
+
+def test_crack_time_uses_singular_units():
+    feedback = " ".join(check_password_strength("Qwertyuiop123!", COMMON).feedback)
+    assert "about 1 hour." in feedback
+
+
+def test_year_is_detected():
+    assert "year" in kinds("kqzv1987")
+
+
+def test_random_characters_fall_back_to_brute_force():
+    assert kinds("Zx!9mK#pQ2@nR5$v") == {"bruteforce"}
+
+
+def test_each_extra_random_character_multiplies_the_guesses():
+    shorter = estimate_guesses("Zx!9mK#p", COMMON).guesses
+    longer = estimate_guesses("Zx!9mK#pQ", COMMON).guesses
+    assert longer >= shorter * 10
+
+
+def test_feedback_names_the_pattern_that_weakened_the_password():
+    feedback = " ".join(check_password_strength("Qwertyuiop123!", COMMON).feedback)
+    assert "keyboard pattern" in feedback
+
+
+def test_feedback_never_asks_for_composition_rules():
+    feedback = " ".join(check_password_strength("correct horse battery staple", COMMON).feedback)
+    assert "uppercase" not in feedback
+    assert "digit" not in feedback
+
+
+def test_estimate_is_reported_in_feedback():
+    feedback = " ".join(check_password_strength("anything", COMMON).feedback)
+    assert "guesses" in feedback
